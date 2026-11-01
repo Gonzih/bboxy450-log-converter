@@ -1,5 +1,48 @@
 # bboxy450-log-converter
 
-Parses Claude Code, Codex and Bboxy agent session logs into one IR, stored as a streamable, append-only compressed log (bxl). Lowers the IR back into native sessions, so a session can continue in another harness. Part of the bboxy450 suite.
+Common IR for Claude Code, Codex and Bboxy session logs. The library and CLI
+surface are bootstrapped; native parsing, lowering and bxl persistence follow in
+later phases. The CLI lists the planned commands with `--help` and exits 2 for
+commands whose implementation has not landed.
 
-Status: design proposed. See AGENTS.md for the binding specs.
+```sh
+cargo run --offline --locked -- --help
+make test
+make test-formal
+```
+
+`make test` uses a private HOME/CODEX_HOME and closed stdin. It checks formatting,
+strict clippy with default/all features, all Rust targets, source headers,
+credential shapes, denied dependencies/source provenance, broken controls and
+native Rust TLC/Java TLC exact graph and verdict parity. Dependencies must be
+fetched first (`cargo fetch --locked`); pinned public Java/TLC artifacts are
+provisioned automatically in `target/formal/tools`, without a global install.
+
+The IR follows [lc-ir v0.1](https://github.com/bboxy450/bboxy450-harness/blob/main/.bboxy/interfaces/lc-ir.md).
+Its stable CBOR table is [src/ir/keys.rs](src/ir/keys.rs): record keys and enum
+discriminants are integers; IDs/hashes/raw/sealed data use byte strings where
+appropriate; application JSON maps retain their own keys. Encoding uses definite
+lengths, shortest primitive representations and recursive length-first canonical
+map ordering. Fixed goldens cover every variant and enum value.
+
+```rust
+use bboxy450_log_converter::ir::{Event, cbor};
+# fn example(bytes: &[u8]) -> Result<(), Box<dyn std::error::Error>> {
+let decoded = cbor::decode::<Event>(bytes)?;
+let event = decoded.value(); // known IR view; reasoning is separate from Message
+let forwarded = decoded.encode()?; // preserves unknown fields/tags at every depth
+# Ok(())
+# }
+```
+
+`Decoded` keeps an immutable known projection and the complete CBOR value so
+future fields are retained without adding transport fields to the binding IR.
+`into_value()` explicitly discards future fields; encoding that extracted value
+creates a new v0.1 record. Duplicate map keys and malformed/trailing records fail.
+No real session logs are included; every fixture is synthetic.
+
+[Verification inventory](verification/README.md) records P1's implementation-only
+coverage, the checker bootstrap corpus and planned product contracts. The binding
+specs and task records remain in the harness KB identified in [AGENTS.md](AGENTS.md).
+
+Origin, license and accurate reuse credit: [ATTRIBUTION.md](ATTRIBUTION.md).

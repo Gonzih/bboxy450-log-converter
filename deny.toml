@@ -1,0 +1,10 @@
+# Copyright 2026 Boxy (bboxy450) and contributors.
+# SPDX-License-Identifier: LicenseRef-Respectful-Slop-1.0-Draft
+# Project: bboxy450-log-converter — https://github.com/bboxy450/bboxy450-log-converter
+# License: https://github.com/bboxy450/bboxy450-log-converter/blob/main/LICENSE
+# Credit copied/adapted/translated reuse accurately; independent inspiration credit requested.
+# Policy: https://github.com/bboxy450/bboxy450-log-converter/blob/main/ATTRIBUTION.md
+
+# d4949: no dependencies or copied implementations from session converters.
+banned_packages = ["ctx", "ctxrs", "casr", "cross-agent-session-resumer", "harbor", "session-bridge", "claude-code-log"]
+banned_origins = ["github.com/ctxrs/ctx", "github.com/dicklesworthstone/cross_agent_session_resumer", "github.com/laude-institute/harbor", "session-bridge", "github.com/daaain/claude-code-log"]

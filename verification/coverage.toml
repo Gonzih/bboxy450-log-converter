@@ -1,0 +1,14 @@
+# Copyright 2026 Boxy (bboxy450) and contributors.
+# SPDX-License-Identifier: LicenseRef-Respectful-Slop-1.0-Draft
+# Project: bboxy450-log-converter — https://github.com/bboxy450/bboxy450-log-converter
+# License: https://github.com/bboxy450/bboxy450-log-converter/blob/main/LICENSE
+# Credit copied/adapted/translated reuse accurately; independent inspiration credit requested.
+# Policy: https://github.com/bboxy450/bboxy450-log-converter/blob/main/ATTRIBUTION.md
+
+[[crate]]
+name = "bboxy450-log-converter"
+status = "implementation-tests"
+models = []
+scope = "P1 IR and deterministic CBOR only; no concurrent runtime, persistence or arbitration is implemented. No product model or Rust refinement claim."
+sources = ["src/lib.rs", "src/main.rs", "src/ir/mod.rs", "src/ir/keys.rs", "src/ir/cbor.rs"]
+implementation_only = ["IR shape, all CBOR variants, raw and sealed bytes: tests/cbor_golden.rs and tests/cbor_compat.rs", "Deterministic event identity: tests/cbor_compat.rs", "CLI skeleton: tests/cli.rs", "BLAKE3 cryptography, arbitrary Rust correctness and future runtime/OS behavior are not proven by the checker bootstrap corpus."]
