@@ -1,0 +1,114 @@
+# Copyright 2026 Boxy (bboxy450) and contributors.
+# SPDX-License-Identifier: LicenseRef-Respectful-Slop-1.0-Draft
+# Project: bboxy450-log-converter — https://github.com/bboxy450/bboxy450-log-converter
+# License: https://github.com/bboxy450/bboxy450-log-converter/blob/main/LICENSE
+# Credit copied/adapted/translated reuse accurately; independent inspiration credit requested.
+# Policy: https://github.com/bboxy450/bboxy450-log-converter/blob/main/ATTRIBUTION.md
+
+# P4 Codex codec — Executor report
+
+Task: bboxy450-harness #5080, tasks/2026-11-01-lc-p4-codex.md.
+Role: Executor, E5 lc-probe. Binding records read: #4965 P4, #4960, #4953;
+P0 F6–F10 provide the native-resume witnesses.
+Worktree: /Users/feral/mydev/bboxy450-log-converter-p4, branch p4-codex.
+Base: origin/p1-bootstrap-ir at bb87743bea428d95832ca0bf5a28bd8d3c08df8f.
+Implementation commit: 9307ceb10cf8814565249777bb147e10eb9091e8 (signed).
+The enclosing signed report commit and final verification SHA are in task_report.
+
+## Result and acceptance evidence
+
+`make test` exited 0, fully unattended. The committed p4-make-test.log contains
+its complete stdout/stderr and exit. `.bboxy/runs/test-current.json` records all
+nine canonical commands with exit 0, private_home=true and operator_input=false.
+The first complete run is bound to implementation commit 9307ceb; after this
+report commit the gate and formal receipt are refreshed at the final HEAD.
+
+| Criterion | Evidence and mechanism |
+| --- | --- |
+| Native item mappings | src/parse/codex.rs:203 maps session metadata and base instructions, context, response items, event messages, compaction and native-only records. tests/codex.rs:55 verifies typed fields across the hand-written fixture. |
+| Readable and sealed reasoning | src/parse/codex.rs:344 retains the encrypted wire string as opaque bytes; :358 maps reasoning text and summary separately. tests/codex.rs:55 and :242 assert the summary and seal survive even without raw. |
+| Incremental byte-offset parsing | src/parse/codex.rs:23 exposes Cursor; :60 restores a session/cursor; :93 reads one complete record, rewinds an incomplete tail, and advances the cursor only for complete records. tests/codex.rs:181 restores at every byte cut, including split UTF-8 and compaction projection batches. :205 verifies repeated partial-tail reads leave the cursor unchanged. |
+| Exact identity and parent order | src/parse/codex.rs:320 selects an item's own key, then native ordinal, then line ordinal; EventId::native/inferred use P1's exact framed helper. tests/codex.rs:29 and :55 assert dense seq, previous-event parents, key vectors and unique fixture ids. |
+| Same-provider byte identity and IR fixpoint | src/lower/codex.rs:18 streams retained Codex raw bytes in dense seq order, restoring LF; CR is retained for exact CRLF replay. tests/codex.rs:29 asserts original bytes == lowered bytes and parse(lower(parse(input))) == parse(input), including raw and fidelity. |
+| Metadata first and no silent unsupported replay | src/lower/codex.rs:18 rejects a missing/foreign/mismatched first metadata record, unordered events, foreign raw and unsupported non-raw events. Derived compaction messages are skipped only when named by their retained compaction record. tests/codex.rs:265 exercises rejecting controls. |
+| Determinism | tests/codex.rs:166 compares complete IR and canonical CBOR from two parses with the same caller-owned IR session id. No timestamps or native ids are invented. |
+| Truncated and malformed input | tests/codex.rs:181, :205 and :219 cover all byte partitions, invalid UTF-8, non-JSON, invalid shapes/arguments and all 256 byte values. Malformed JSON gives a retained Warn Notice; unknown shapes/items give retained Unknown, with parse_errors counted. No panic or silent drop. |
+| Real CLI resume of lowered output | tests/codex_resume.rs:20 constructs synthetic native history, parses and lowers it in Rust, asserts byte equality, then passes those exact bytes to scripts/test-codex-resume.py. p4-resume-recorded.log contains codex-cli 0.164.0 exit 0 and both prior-turn markers in captured `/v1/responses` input. |
+| Resume negative control | scripts/test-codex-resume.py removes session_meta from a fresh copy of lowered bytes while retaining first-turn bytes. The CLI exits 1 before inference; the mock captures zero model requests. p4-resume-recorded.log has verdict_exit=1 for this candidate. |
+| Formal and repo gates | p4-make-test.log records fmt, strict Clippy with default/all features, all-target/all-feature Rust tests, headers, credential shapes, dependency/provenance controls, and make test-formal, all exit 0. Five native Rust/Java TLC exact state/edge and verdict pairs pass, including broken safety/deadlock/liveness controls. |
+| Signed commits and attribution | Machine signature key 9B07E849480C68328CA20684844ECC0587DE7AB0, Boxy <bboxy450@gmail.com>. git verify-commit on the implementation returned 0; the final signature is checked again at handoff. Every added source and committed log has the ATTRIBUTION.md header. P0 reuse has an adjacent pinned Copied from credit. |
+| Required report and handoff | This committed file is .bboxy/runs/p4-codex-report.log. The commit message names Report: [[p4-codex-report]]. One successful task_report uses verify_result.command exactly make test with actual exit 0. |
+
+## Implementation surface
+
+- `parse::codex::Parser<R: BufRead + Seek>` is a bounded reader, not an all-session
+  collector. The caller supplies the IR-owned SessionId; source/native identity,
+  cwd, git, CLI version and timestamps come from session_meta. Parser revision 1.
+- `next_record()` returns a batch for one native line. A batch is atomic for the
+  cursor: consume all derived compaction messages before checkpointing. Persist
+  both Session and Cursor; reapply the without_raw option when restoring that
+  run mode. The cursor stores offset, line ordinal, next seq, prior id, turn and
+  parse-error count. Partial tail bytes are deliberately reread after append.
+- User/assistant/developer/system messages, inline image content hashes,
+  readable/sealed reasoning, function/custom calls and their outputs, explicit
+  task/turn starts/ends/abort, token_count usage, notices and context map to IR.
+  Compaction replacement messages get derived ids and remain separate from the
+  sealed compaction; their retained parent record is emitted only once on replay.
+- A tool output's call_id is a reference to its call rather than its own id.
+  Its own id or native ordinal is used, so call and output do not collide.
+- `Sealed.provider` is `Provider::Codex`, as required by the existing lc-ir
+  Provider enum. The brief's OpenAI label denotes the native API format; no
+  nonexistent Openai IR variant or breaking CBOR change was introduced.
+- Per lc-ir §3, token_usage_record, world_state and communication metadata are
+  opaque Native records; typed Usage comes from event_msg/token_count. Future
+  unrecognized items are Unknown. All retained raw bytes remain replayable.
+- `lower::codex::write` writes to a caller-owned Write, opens no native client
+  directory/database, checks dense order and metadata first, and returns typed
+  I/O errors for unsupported input. It does not buffer/sort an entire session.
+- Added base64 0.22.1 to decode inline image bodies for BlobRef hashes; the deny
+  check passes across 53 direct/transitive/dev packages. Remote images are not
+  fetched and get Unknown blocks with original URI retained in raw.
+- Tests/support fixtures are authored synthetic Rust values; no real log was
+  read or included. tests/support/p0_mock.py copies the project's pinned P0
+  helper, retaining its header and an exact source credit. Its child environments
+  are allowlisted, with private HOME/CLAUDE_CONFIG_DIR/CODEX_HOME/XDG directories,
+  dummy keys, local mock endpoints and closed external proxy settings. Python
+  bytecode output is disabled. Native client calls have 25-second deadlines.
+
+## Verification scope and limits
+
+- `cargo test --offline --locked --test codex --test codex_resume`: exit 0,
+  nine codec tests plus one process test, zero failures. The process test's two
+  candidate verdicts are actual CLI/model-request observations, not stdout text
+  claims. An absent CLI is labelled SKIP; the installed CLI ran in this gate.
+- `make test`: exit 0. `cargo clippy --offline --locked --all-targets
+  --all-features -- -D warnings`, headers, secrets and deny also ran directly
+  with exit 0 during development. `git diff --check` exited 0.
+- Stale-receipt control: immediately after the report commit,
+  `make check-formal-evidence` exited 2 with stale formal source/hash receipt,
+  correctly refusing the prior HEAD. The final gate refresh is required.
+- The formal source inventory now includes all four new production modules and
+  names the codec/process witnesses. No new concurrent owner, durable checkpoint,
+  retry protocol, lifecycle or Yarn topology is introduced. Parsing/JSON/raw
+  replay are implementation-only coverage, not a product-model refinement claim.
+  LcWatcher cursor/ack/crash models remain P7; bootstrap TLC parity proves the
+  listed bounded checker corpus only. Native/TLC backend disagreements still fail.
+- The 64 MiB native-line cap returns InvalidData. I/O failures propagate. A final
+  line without LF is left unconsumed even if its JSON would otherwise parse.
+  No arbitrary whole-session memory or wall-clock performance claim is made.
+- --no-raw retains readable and sealed reasoning but same-provider reconstruction
+  without raw needs the P6 synthesis path; this lowerer returns an error for it.
+  Writer errors can leave a prefix in the caller's sink; transactional publication
+  is the caller's responsibility. This module never places sessions itself.
+- No cross-provider lowering, bxl CLI wiring, blob storage/fetching, sanitizer,
+  durable watcher, compaction-history decryption, live paid endpoint acceptance,
+  or real-user session validation is claimed. The existing CLI still reserves
+  parse/lower commands until the bxl phases can wire those flows.
+- P1 PR #1 remained OPEN/unmerged while P4 was verified. P4 was rebased to its
+  latest branch commit bb87743; its PR is stacked on p1-bootstrap-ir. Rebase onto
+  main remains conditional on P1 merging, per the assignment. No merge is performed.
+- Source changes are committed. Generated target/, .bboxy/runs/test-current.json,
+  the current native-resume log and verification/evidence/ archives stay local.
+  The latter retain final source/model/tool hash receipts across target cleanup.
+  Committed snapshots are p4-make-test.log and p4-resume-recorded.log; the canonical
+  gate regenerates current receipts without altering those snapshots.

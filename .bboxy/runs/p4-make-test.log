@@ -1,0 +1,122 @@
+# Copyright 2026 Boxy (bboxy450) and contributors.
+# SPDX-License-Identifier: LicenseRef-Respectful-Slop-1.0-Draft
+# Project: bboxy450-log-converter — https://github.com/bboxy450/bboxy450-log-converter
+# License: https://github.com/bboxy450/bboxy450-log-converter/blob/main/LICENSE
+# Credit copied/adapted/translated reuse accurately; independent inspiration credit requested.
+# Policy: https://github.com/bboxy450/bboxy450-log-converter/blob/main/ATTRIBUTION.md
+
+Command: make test
+python3 -I scripts/test.py
+test: cargo fmt --check
+test: cargo clippy --offline --locked --all-targets -- -D warnings
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.15s
+test: cargo clippy --offline --locked --all-targets --all-features -- -D warnings
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.02s
+test: cargo test --offline --locked --all-targets --all-features
+   Compiling bboxy450-log-converter v0.1.0 (/Users/feral/mydev/bboxy450-log-converter-p4)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.49s
+     Running unittests src/lib.rs (target/debug/deps/bboxy450_log_converter-0797c993cdad8862)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/bboxy450_log_converter-5c30a27dad4e7309)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/cbor_compat.rs (target/debug/deps/cbor_compat-67001d84c373dc7a)
+
+running 10 tests
+test event_identity_length_framing_separates_adjacent_native_fields ... ok
+test unknown_session_source_git_and_lineage_keys_survive ... ok
+test rfc8949_core_order_is_bytewise_across_key_types ... ok
+test event_identity_obeys_the_exact_native_and_inferred_key_formula ... ok
+test length_first_control_fails_the_mixed_key_golden ... ok
+test unknown_fields_survive_at_each_event_record_depth ... ok
+test reader_accepts_valid_noncanonical_lengths_floats_containers_and_key_order ... ok
+test canonical_encoding_ignores_map_insertion_order_including_json_payloads ... ok
+test future_union_and_unit_tags_project_unknown_and_forward_losslessly ... ok
+test malformed_truncated_duplicate_and_trailing_data_fail ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/cbor_golden.rs (target/debug/deps/cbor_golden-dde41caedbd69fd0)
+
+running 1 test
+test every_variant_has_a_fixed_golden_and_round_trip ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/cli.rs (target/debug/deps/cli-f291a973f0d54a48)
+
+running 1 test
+test help_version_and_skeleton_status_are_honest ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+     Running tests/codex.rs (target/debug/deps/codex-a19bc272165ec4c5)
+
+running 9 tests
+test codex_partial_tail_does_not_advance_an_open_reader ... ok
+test codex_lowering_refuses_missing_meta_nonraw_foreign_and_reordering ... ok
+test codex_no_raw_preserves_sealed_and_readable_reasoning ... ok
+test codex_maps_the_full_fixture ... ok
+test codex_reasoning_summary_without_encryption_and_total_usage_fallback ... ok
+test codex_determinism_includes_cbor ... ok
+test codex_roundtrip_raw_and_ir_are_identical ... ok
+test codex_malformed_and_unknown_lines_are_retained_without_panics ... ok
+test codex_checkpoint_at_every_byte_boundary_tolerates_truncated_utf8_and_json ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.86s
+
+     Running tests/codex_resume.rs (target/debug/deps/codex_resume-b523a63f7950fc7b)
+
+running 1 test
+test lowered_codex_resumes_in_real_cli_with_prior_turns ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.73s
+
+     Running tests/formal_models.rs (target/debug/deps/formal_models-a870e9a72473b32e)
+
+running 1 test
+test native_models_and_controls ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+test: python3 -I scripts/checks.py headers
+headers: PASS
+test: python3 -I scripts/checks.py secrets
+secrets: PASS
+test: python3 -I scripts/checks.py deny
+deny: PASS; 53 direct/transitive/dev packages, source provenance checked
+test: python3 -I scripts/test-checks.py
+........
+----------------------------------------------------------------------
+Ran 8 tests in 0.029s
+
+OK
+test: make test-formal
+FORMAL_OUT='/Users/feral/mydev/bboxy450-log-converter-p4/target/formal/models' cargo test --offline --locked --test formal_models
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.02s
+     Running tests/formal_models.rs (target/debug/deps/formal_models-a870e9a72473b32e)
+
+running 1 test
+test native_models_and_controls ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+python3 -I scripts/formal.py --native --target '/Users/feral/mydev/bboxy450-log-converter-p4/target/formal'
+formal: native 5 checker/contract cases; 1 crates; 0 product contracts
+python3 -I scripts/formal.py --target '/Users/feral/mydev/bboxy450-log-converter-p4/target/formal'
+formal: BrokenGateSafety: safety, 3 states, 2 edges match
+formal: GateFairResponse: pass, 4 states, 6 edges match
+formal: GateCounter: pass, 3 states, 2 edges match
+formal: BrokenGateDeadlock: deadlock, 3 states, 2 edges match
+formal: BrokenGateLiveness: liveness, 4 states, 6 edges match
+formal: PASS; 5 exact graph/verdict pairs; 0 product contracts; retained verification/evidence/b1ce1e73251e95a666004cebdb945cdf346319959d1598884bdd9ee835e994ce
+test: PASS
+
+Exit: 0
