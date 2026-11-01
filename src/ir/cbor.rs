@@ -13,7 +13,7 @@ use super::{
     Event, Session,
     keys::{self, Field, Schema},
 };
-use ciborium::value::{CanonicalValue, Value};
+use ciborium::value::Value;
 use serde::{Serialize, de::DeserializeOwned};
 use std::{fmt, io::Cursor};
 
@@ -235,8 +235,11 @@ fn transcode(value: Value, schema: Schema, decoding: bool) -> Result<Value, Erro
 
 fn canonical_bytes(mut value: Value) -> Result<Vec<u8>, Error> {
     canonicalize(&mut value)?;
+    encoded_bytes(&value)
+}
+fn encoded_bytes(value: &Value) -> Result<Vec<u8>, Error> {
     let mut bytes = Vec::new();
-    ciborium::ser::into_writer(&value, &mut bytes).map_err(|e| fail(e.to_string()))?;
+    ciborium::ser::into_writer(value, &mut bytes).map_err(|e| fail(e.to_string()))?;
     Ok(bytes)
 }
 fn canonicalize(value: &mut Value) -> Result<(), Error> {
@@ -246,12 +249,20 @@ fn canonicalize(value: &mut Value) -> Result<(), Error> {
                 canonicalize(k)?;
                 canonicalize(v)?;
             }
-            entries.sort_by_cached_key(|(k, _)| CanonicalValue::from(k.clone()));
-            if entries.windows(2).any(|w| {
-                CanonicalValue::from(w[0].0.clone()) == CanonicalValue::from(w[1].0.clone())
-            }) {
+            // RFC 8949 §4.2.1: lexicographic order of deterministic key bytes.
+            // https://www.rfc-editor.org/rfc/rfc8949.html#section-4.2.1
+            let mut keyed = std::mem::take(entries)
+                .into_iter()
+                .map(|(key, value)| Ok((encoded_bytes(&key)?, key, value)))
+                .collect::<Result<Vec<_>, Error>>()?;
+            keyed.sort_by(|a, b| a.0.cmp(&b.0));
+            if keyed.windows(2).any(|w| w[0].0 == w[1].0) {
                 return Err(fail("duplicate CBOR map key"));
             }
+            *entries = keyed
+                .into_iter()
+                .map(|(_, key, value)| (key, value))
+                .collect();
         }
         Value::Array(values) => {
             for value in values {

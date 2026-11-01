@@ -30,17 +30,23 @@ pub struct TurnId(pub String);
 /// RFC 3339 timestamp as recorded by the provider; never synthesized.
 pub type Timestamp = String;
 
-/// First 16 bytes of BLAKE3(provider || native_id || native_key), lc-ir §2.
+/// First 16 bytes of BLAKE3 over `bxl.event.v1` followed by provider,
+/// native_id and native_key, each prefixed by its u32 big-endian byte length.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct EventId(pub [u8; 16]);
 
 impl EventId {
+    /// # Panics
+    /// Panics if a field exceeds the u32 framing limit (4 GiB minus one byte).
     pub fn native(provider: Provider, native_id: &str, native_key: &str) -> Self {
         let mut hash = blake3::Hasher::new();
-        hash.update(provider.as_str().as_bytes());
-        hash.update(native_id.as_bytes());
-        hash.update(native_key.as_bytes());
+        hash.update(b"bxl.event.v1");
+        for field in [provider.as_str(), native_id, native_key] {
+            let len = u32::try_from(field.len()).expect("EventId field exceeds u32 length");
+            hash.update(&len.to_be_bytes());
+            hash.update(field.as_bytes());
+        }
         Self(
             hash.finalize().as_bytes()[..16]
                 .try_into()

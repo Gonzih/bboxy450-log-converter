@@ -20,7 +20,7 @@ fn session() -> Session {
 }
 fn event(kind: Value) -> Event {
     serde_json::from_value(json!({
-        "seq":0,"id":vec![1;16],"parent":vec![2;16],"turn":"turn-0","at":"2026-01-01T00:00:00.000Z",
+        "seq":0,"id":EventId::native(Provider::Claude,"synthetic","uuid-0"),"parent":vec![2;16],"turn":"turn-0","at":"2026-01-01T00:00:00.000Z",
         "fidelity":"full","raw":{"provider":"claude","bytes":[0,255,10]},"kind":kind
     }))
     .unwrap()
@@ -212,6 +212,31 @@ fn cases() -> BTreeMap<String, Vec<u8>> {
     let bytes = cbor::encode(&minimal).unwrap();
     assert_eq!(cbor::decode::<Event>(&bytes).unwrap().value(), &minimal);
     cases.insert("event_minimal".into(), bytes);
+    // A retained future field exercises the mixed-key order from RFC 8949 §4.2.1.
+    use ciborium::value::Value as Cbor;
+    let mut future: Cbor = ciborium::de::from_reader(cases["unknown"].as_slice()).unwrap();
+    let keys = [
+        Cbor::Bool(false),
+        Cbor::Array(vec![Cbor::from(-1)]),
+        Cbor::Array(vec![Cbor::from(100)]),
+        Cbor::Text("aa".into()),
+        Cbor::Text("z".into()),
+        Cbor::from(-1),
+        Cbor::from(100),
+        Cbor::from(10),
+    ];
+    let Cbor::Map(fields) = &mut future else {
+        panic!("event map")
+    };
+    fields.push((
+        Cbor::from(99),
+        Cbor::Map(keys.into_iter().map(|key| (key, Cbor::Null)).collect()),
+    ));
+    let mut bytes = Vec::new();
+    ciborium::ser::into_writer(&future, &mut bytes).unwrap();
+    let decoded = cbor::decode::<Event>(&bytes).unwrap();
+    assert_eq!(decoded.value().kind, EventKind::Unknown);
+    cases.insert("future_mixed_keys".into(), decoded.encode().unwrap());
     cases
 }
 #[test]

@@ -211,8 +211,16 @@ fn malformed_truncated_duplicate_and_trailing_data_fail() {
 #[test]
 fn event_identity_obeys_the_exact_native_and_inferred_key_formula() {
     let id = EventId::native(Provider::Claude, "synthetic", "uuid-0");
-    let hash = blake3::hash(b"claudesyntheticuuid-0");
-    assert_eq!(&id.0, &hash.as_bytes()[..16]);
+    // Literal framing assembled independently: domain, then 6/9/6-byte fields.
+    let hash = blake3::hash(
+        b"bxl.event.v1\x00\x00\x00\x06claude\x00\x00\x00\x09synthetic\x00\x00\x00\x06uuid-0",
+    );
+    let expected = [
+        0x7c, 0x9b, 0x6c, 0x9f, 0x48, 0xea, 0xbd, 0x07, 0x3d, 0x1e, 0x48, 0xcc, 0xd3, 0xf0, 0x20,
+        0x57,
+    ];
+    assert_eq!(&hash.as_bytes()[..16], &expected);
+    assert_eq!(id.0, expected);
     assert_eq!(id, EventId::native(Provider::Claude, "synthetic", "uuid-0"));
     assert_ne!(id, EventId::native(Provider::Codex, "synthetic", "uuid-0"));
     assert_ne!(id, EventId::native(Provider::Claude, "another", "uuid-0"));
@@ -240,4 +248,54 @@ fn event_identity_obeys_the_exact_native_and_inferred_key_formula() {
             .value(),
         &e
     );
+}
+
+#[test]
+fn event_identity_length_framing_separates_adjacent_native_fields() {
+    assert_ne!(
+        EventId::native(Provider::Claude, "s1", "23"),
+        EventId::native(Provider::Claude, "s12", "3")
+    );
+}
+
+#[test]
+fn rfc8949_core_order_is_bytewise_across_key_types() {
+    // RFC 8949 §4.2.1 example, deliberately inserted in reverse order.
+    let mut value = wire(&fixture("unknown"));
+    let keys = [
+        Value::from(10),
+        Value::from(100),
+        Value::from(-1),
+        Value::Text("z".into()),
+        Value::Text("aa".into()),
+        Value::Array(vec![Value::from(100)]),
+        Value::Array(vec![Value::from(-1)]),
+        Value::Bool(false),
+    ];
+    entries(&mut value).push((
+        Value::from(99),
+        Value::Map(
+            keys.into_iter()
+                .rev()
+                .map(|key| (key, Value::Null))
+                .collect(),
+        ),
+    ));
+    let forwarded = cbor::decode::<Event>(&bytes(&value))
+        .unwrap()
+        .encode()
+        .unwrap();
+    let mut canonical = wire(&forwarded);
+    let expected = [
+        0xa8, // 8 entries, each with a null value
+        0x0a, 0xf6, // 10
+        0x18, 0x64, 0xf6, // 100
+        0x20, 0xf6, // -1
+        0x61, 0x7a, 0xf6, // "z"
+        0x62, 0x61, 0x61, 0xf6, // "aa"
+        0x81, 0x18, 0x64, 0xf6, // [100]
+        0x81, 0x20, 0xf6, // [-1]
+        0xf4, 0xf6, // false
+    ];
+    assert_eq!(bytes(field(&mut canonical, 99)), expected);
 }

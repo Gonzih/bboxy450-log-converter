@@ -22,8 +22,13 @@ The IR follows [lc-ir v0.1](https://github.com/bboxy450/bboxy450-harness/blob/ma
 Its stable CBOR table is [src/ir/keys.rs](src/ir/keys.rs): record keys and enum
 discriminants are integers; IDs/hashes/raw/sealed data use byte strings where
 appropriate; application JSON maps retain their own keys. Encoding uses definite
-lengths, shortest primitive representations and recursive length-first canonical
-map ordering. Fixed goldens cover every variant and enum value.
+lengths, shortest primitive representations and recursive bytewise map key
+ordering under [RFC 8949 §4.2.1](https://www.rfc-editor.org/rfc/rfc8949.html#section-4.2.1).
+Fixed goldens cover every variant and enum value, including mixed key types.
+
+Event IDs hash the domain tag `bxl.event.v1`, then provider, native session ID
+and native record key, each framed by its u32 big-endian byte length. This
+separates adjacent field boundaries before taking the first 16 BLAKE3 bytes.
 
 ```rust
 use bboxy450_log_converter::ir::{Event, cbor};

@@ -1,7 +1,10 @@
 # Formal and implementation verification
 
 P1 implements immutable IR data and CBOR bytes. Under d4949, these get golden,
-round-trip and malformed-input tests. There are **zero product stateful models**
+round-trip and malformed-input tests. Event identity tests include a literal
+length-framed hash vector and the s1/23 versus s12/3 collision control. A mixed-key
+CBOR vector distinguishes RFC 8949 §4.2.1 bytewise order from length-first order.
+There are **zero product stateful models**
 at this phase. `coverage.toml` inventories the crate and every production Rust
 source with its implementation-only evidence; omission fails the gate. No Yarn
 runtime/topology exists in P1, so there is no applicable Yarn projection yet.
@@ -60,3 +63,7 @@ no implementation from the denied projects was read or copied.
 The parity driver and exporter are adapted from bboxy450-harness/bboxy450-term
 with adjacent origin/license notices. Product policy:
 https://github.com/bboxy450/bboxy450-log-converter/blob/main/ATTRIBUTION.md
+
+P2 integration note: keep the `Decoded<Event>`/`Decoded<Session>` envelope through
+bxl read/forward paths so nested future fields survive. A typed editing API that
+retains extensions is deferred; `into_value()` currently discards them explicitly.
