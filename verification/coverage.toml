@@ -9,6 +9,6 @@
 name = "bboxy450-log-converter"
 status = "implementation-tests"
 models = []
-scope = "P1 IR and deterministic CBOR only; no concurrent runtime, persistence or arbitration is implemented. No product model or Rust refinement claim."
-sources = ["src/lib.rs", "src/main.rs", "src/ir/mod.rs", "src/ir/keys.rs", "src/ir/cbor.rs"]
-implementation_only = ["IR shape, all CBOR variants, raw and sealed bytes: tests/cbor_golden.rs and tests/cbor_compat.rs", "Deterministic event identity: tests/cbor_compat.rs", "CLI skeleton: tests/cli.rs", "BLAKE3 cryptography, arbitrary Rust correctness and future runtime/OS behavior are not proven by the checker bootstrap corpus."]
+scope = "P1 IR/CBOR and P4 Codex pure parsing/raw replay; no concurrent runtime, persistence or arbitration is implemented. No product model or Rust refinement claim."
+sources = ["src/lib.rs", "src/main.rs", "src/ir/mod.rs", "src/ir/keys.rs", "src/ir/cbor.rs", "src/parse/mod.rs", "src/parse/codex.rs", "src/lower/mod.rs", "src/lower/codex.rs"]
+implementation_only = ["Codex item mappings, malformed/truncated lines, byte-boundary cursor resume, identity and exact raw replay: tests/codex.rs; real mock-backed CLI: tests/codex_resume.rs","IR shape, all CBOR variants, raw and sealed bytes: tests/cbor_golden.rs and tests/cbor_compat.rs", "Deterministic event identity: tests/cbor_compat.rs", "CLI skeleton: tests/cli.rs", "BLAKE3 cryptography, arbitrary Rust correctness and future runtime/OS behavior are not proven by the checker bootstrap corpus."]

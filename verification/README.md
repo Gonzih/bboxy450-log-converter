@@ -71,3 +71,13 @@ https://github.com/bboxy450/bboxy450-log-converter/blob/main/ATTRIBUTION.md
 P2 integration note: keep the `Decoded<Event>`/`Decoded<Session>` envelope through
 bxl read/forward paths so nested future fields survive. A typed editing API that
 retains extensions is deferred; `into_value()` currently discards them explicitly.
+
+P4 adds pure Codex parsing and same-provider raw replay. `tests/codex.rs` checks
+all item families, complete-line byte offsets at every partition boundary,
+malformed/unknown records, exact replay, sealed fields and deterministic ids.
+`tests/codex_resume.rs` invokes the P0 mock with lowered bytes in an isolated
+client home; its missing-metadata control fails before inference. The cursor
+is an in-process parser checkpoint, not a durable watcher acknowledgement.
+No new product lifecycle, concurrent owner, persistence protocol or Yarn
+projection is introduced; LcWatcher and its cursor/ack/crash model remain P7.
+The checker corpus remains infrastructure coverage, not a proof of these codecs.

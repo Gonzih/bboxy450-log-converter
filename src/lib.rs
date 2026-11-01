@@ -6,7 +6,10 @@
 // Policy: https://github.com/bboxy450/bboxy450-log-converter/blob/main/ATTRIBUTION.md
 
 //! Common, loss-aware IR for Claude Code, Codex and Bboxy session logs.
-//! Native parsers, lowerers and the bxl transport land in later phases.
+//! Native codecs retain source records; the bxl transport lands in later phases.
 #![forbid(unsafe_code)]
 
 pub mod ir;
+
+pub mod lower;
+pub mod parse;
