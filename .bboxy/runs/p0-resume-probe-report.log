@@ -1,0 +1,126 @@
+# Copyright 2026 Boxy (bboxy450) and contributors.
+# SPDX-License-Identifier: LicenseRef-Respectful-Slop-1.0-Draft
+# Project: bboxy450-log-converter — https://github.com/bboxy450/bboxy450-log-converter
+# License: https://github.com/bboxy450/bboxy450-log-converter/blob/main/LICENSE
+# Credit copied/adapted/translated reuse accurately; independent inspiration credit requested.
+# Policy: https://github.com/bboxy450/bboxy450-log-converter/blob/main/ATTRIBUTION.md
+
+# P0 native resume probe — report
+
+Task: bboxy450-harness #4974, tasks/2026-11-01-lc-p0-resume-probe.md.
+Role: Executor, E5 lc-probe. Binding inputs read: #4965 P0, #4963,
+#4953 and d4972. No spec or decision was changed by this implementation.
+Worktree: /Users/feral/mydev/bboxy450-log-converter-p0.
+Branch: p0-resume-probe; base f509e8e. Revision: the signed commit containing
+this report; the task_report supplies its exact SHA. No merge is authorized.
+
+## Result
+
+`make test` exited 0 unattended at 2026-11-01T22:40:47Z. Both installed clients
+ran: Claude Code 2.1.304 and codex-cli 0.164.0. Five probe scripts exited 0;
+13 candidate witnesses matched expectations (7 positive, including the tolerated
+parent case, and 6 negative), with zero skips or timeouts. The stdout, stderr,
+commands, CLI exits, model-input extracts, request hashes, and script exits are
+committed in p0-resume-probe-evidence.log. Its line 8 records the actual gate
+command and exit code; line 36 records the aggregate probe result.
+
+A candidate's verdict is CLI exit 0 AND turn one in a captured model request.
+`verdict_exit` is 0 for that result, otherwise 1. A negative record's PASS means
+the candidate failed that predicate as required. Count-token requests and CLI
+stdout cannot supply history evidence. Positive candidates also assert turn two.
+
+## Results table and downstream facts
+
+Evidence references below are relative to `.bboxy/runs/`.
+
+| Fact | Probe | CLI exit / verdict exit | Captured turn one / two | Fact for P3, P4 and P6 | d4972 consequence |
+| --- | --- | --- | --- | --- | --- |
+| F1 | Claude synthesized session, by id | 0 / 0 | yes / yes | P3/P6 can synthesize the four linked user/assistant records. Tested cwd slug replaces non-alphanumeric characters with `-`, not just `/`. P4 uses the same fixture for the Claude importer. Evidence: p0-resume-probe-evidence.log:11. | Id placement works, but alone still needs the native-file exception. |
+| F2 | Claude synthesized session, external file path | 0 / 0 | yes / yes | P3/P6 can place the target in a private writable staging path outside the client's directories and return `claude --resume <path>`. The client appends to this staged file, so retain it while the session lives. P4 can use this as the cross-direction destination witness. Evidence: :13. | **Withdraw for Claude** when this path route is used: the converter need not write the user's client directory. |
+| F3 | Claude with zero `api-request*` records | 0 / 0 | yes / yes | P3/P6 need not invent request snapshots for the tested text-only native lowering. P4-to-Claude conversion can omit them. This does not cover signed thinking or opaque request records. Evidence: :18. | Same supported external-path route as F2. |
+| F4 | Claude duplicate UUIDs leaving dangling `parentUuid` links | 0 / 1 | no / no | P3/P6 must preserve unique node identities when rewriting a session. The candidate still contains both turns on disk. P4 cross-direction tests must check model input, since CLI success is insufficient. Evidence: :12, :14, :19. | No change; this is a rejecting control for F1–F3. |
+| F5 | Claude single dangling parent, UUIDs unique | 0 / 0 | yes / yes | P3/P4/P6 must not claim the client validates every parent link. This weaker malformed chain is tolerated; it is explicitly separate from F4. Evidence: :15. | No change. |
+| F6 | Codex hand-written rollout, no database before launch | 0 / 0 | yes / yes | P4/P6 can synthesize `session_meta` first and use filename lookup. The client creates and backfills `state_5.sqlite`; probes inspect its matching row only in read-only mode. P3 can supply the analogous Claude history. Evidence: :21. | This fallback works but still requires converter native-file placement if chosen. Prefer F7 where its content coverage suffices. |
+| F7 | Codex app-server imports synthesized Claude history | app-server 0, exec 0 / 0 | yes / yes | P3/P4/P6 have a noninteractive importer: initialize with `experimentalApi`, detect, import selected SESSIONS, wait for completed import history, then resume the returned target id. Stage under a disposable HOME/.claude/projects while CODEX_HOME points separately at the destination. The source stays byte-identical. Evidence: :25, :27, :29–30. | **Withdraw for Codex's proved importer route**: Codex writes its own native files and database. Direct raw-rollout placement and richer/opaque same-provider fidelity still need separate coverage before routing everything through this text-session importer. |
+| F8 | Codex importer given an arbitrary file outside detected source tree | app-server 0; import history failure | no inference | P3/P4/P6 must stage in the detected HOME/.claude/projects tree. Returning an importId is not success: completed history says `session_not_detected` for an arbitrary source path. `CLAUDE_CONFIG_DIR` does not select the importer tree in this version. No direct importer subcommand is advertised in top-level CLI help; the app-server entry point exists. Evidence: :26–28. | F7 requires the staged HOME route, not an arbitrary path parameter. |
+| F9 | Codex readable `reasoning.summary`, source omits `encrypted_content` | 0 / 0 | yes / yes | P4 retains a readable summary; P3-to-Codex/P6 lowering can express one without a provider seal at the client boundary. The captured reasoning item preserves its text and serializes `encrypted_content:null`. Real Responses service acceptance is not tested by this mock. Evidence: :33. | Independent of placement; does not expand F7's proven importer content coverage. |
+| F10 | Codex missing leading `session_meta`, including copied imported history and summary case | 1 / 1 | no / no | P4/P6 must place metadata first. P3-to-Codex tests must retain this control: the CLI fails before inference even though first-turn bytes remain. A database row can still be backfilled for malformed files, so the row is not resume proof. Evidence: :22, :31, :34. | No change; rejecting controls for F6, F7 and F9. |
+
+These are versioned client facts, not edits to the binding ICD. Under d4972
+the Oracle can remove the native-write exception for the demonstrated routes
+and update #348/session-switch placement. P6 must record any loss from choosing
+the Claude-text importer for content beyond the minimal transcript proved here.
+
+## Files and mechanisms
+
+- Makefile:9 — canonical P0 gate runs source/witness checks and all probes;
+  :11 exposes `make test-probes` independently.
+- probes/support.py:42 — allowlisted environment and throwaway homes; :76 bounds
+  child processes; :125 uses Claude `--bare` (installed help says no keychain
+  reads); :136 creates fixtures with O_EXCL and mode 0600; :205 owns loopback
+  streaming mocks; :286 computes the verdict from real model-input requests.
+- probes/claude_resume.py:16 and probes/claude_api_records.py:10 — native id,
+  external-path and snapshot-absence witnesses with malformed identity chains.
+- probes/codex_rollout.py:16 and probes/codex_reasoning.py:10 — no-database
+  fallback, read-only backfill observation, summary preservation, missing-meta
+  negative controls.
+- probes/codex_importer.py:21 — finite completion polling, not importId claims;
+  :36 checks the installed schema; :57 separates staging HOME from CODEX_HOME;
+  :98 reads Codex's own output and copies it to a fresh malformed candidate.
+- probes/rpc.py:53 — bounded stdio RPC, initialize handshake and request ids;
+  :72 checks app-server's actual shutdown exit.
+- probes/resume.sh and probes/run.py — unattended entry point; independent
+  scripts all run and their exit statuses determine the aggregate verdict.
+- probes/check.py:22 — attribution, standard-library dependency inventory,
+  shell syntax, fabricated-history controls, excluded inherited credentials,
+  process timeout and absent-client controls. probes/README.md documents use.
+- .bboxy/runs/p0-resume-probe-evidence.log — complete synthetic gate output;
+  this report maps its observations to the assignment and downstream phases.
+
+## Commands and acceptance evidence
+
+| Requirement / command | Actual result |
+| --- | --- |
+| `make test` | Exit 0; 5 scripts, 13 witnesses, zero skips, zero unexpected failures. Evidence log:8–36. |
+| `make test-probes` with PATH containing only python3, sh and dirname symlinks | Exit 0; five labelled SKIP records naming absent Claude/Codex. Verified by an isolated `/usr/bin/make test-probes` invocation with a 15-second wrapper deadline. |
+| `env PATH='' /opt/homebrew/bin/python3 -B probes/run.py` | Exit 0; the same five labelled absent-client skips. |
+| `git diff --check` | Exit 0. |
+| `gh api user --jq .login` | Exit 0; approved identity `bboxy450`, without printing credentials. |
+| All commits signed | Signed Boxy commit, machine key 9B07E849480C68328CA20684844ECC0587DE7AB0. Exact SHA and `git verify-commit` result travel in task_report. |
+| Every added file carries origin/policy header | Eleven source/build files checked by probes/check.py; README and both logs also carry the same attribution fields. Existing ATTRIBUTION.md already names this project and canonical URL. |
+| Report at requested path | `.bboxy/runs/p0-resume-probe-report.log`, committed with the work and named by a Report trailer. |
+| One task_report, verify_result.command exactly `make test` | Handoff uses that command and the actual exit 0; Oracle acceptance remains separate. |
+
+## Limits, failures and untouched work
+
+- No real session logs were read, copied or committed. Native fixtures, model
+  input extracts and CLI output here are synthetic. Child environments exclude
+  inherited authentication and seat capability; no request headers are recorded.
+  Real ~/.claude and ~/.codex are not read or written by these probes. There is
+  no credential setup, prompt, global install or operator step.
+- Model endpoints bind only 127.0.0.1. Dummy-key requests receive canned SSE;
+  external HTTP proxy settings point to a closed loopback port. Codex plugin
+  synchronization, host skill discovery and dependency installation are disabled.
+- Each CLI call and RPC has a 25-second deadline, import completion 10 seconds,
+  and app-server shutdown 5 seconds. Timeout is a failing test, never a passing
+  negative. The gate exercises process-group timeout cancellation itself.
+- Tests establish CLI replay, not acceptance by a live paid model endpoint.
+  Tools, images, signed thinking, encrypted reasoning/compaction, very long cwd
+  slugs, interactive TUI resume, and complete same-provider byte identity are
+  untested. No product parser/lowerer or source/model contract was implemented.
+- This P0 branch starts from the records-only bootstrap. There is no Rust crate,
+  formal model, Yarn/TLC backend or pre-existing test target on that base. Formal
+  bootstrap and crate inventory remain P1's scoped deliverables; this gate
+  neither claims a formal pass nor installs a fake passing formal target.
+- Discovery failures corrected before the recorded gate: the initial slash-only
+  Claude cwd slug gave CLI exit 1 (no conversation); replacing all nonalphanumeric
+  characters fixed lookup. The first source-header check replaced URL `//` too,
+  giving `make test` exit 2; converting only comment prefixes corrected the check.
+- Another executor changed the shared clone to p1-bootstrap-ir during discovery.
+  P0 was copied into the isolated p0 worktree before committing. Bootstrap files
+  and the shared checkout were left intact. E6 was told which root files were P0
+  remnants; its application acknowledgement was observed. Only P0 paths enter
+  this commit. P1 will need to combine its canonical test prerequisites with
+  `test-probes` when these independently based branches are integrated.
+- No merge, release, publication of a package, spec amendment, or real-client
+  directory change is included. The PR is the reviewable handoff to the Oracle.
