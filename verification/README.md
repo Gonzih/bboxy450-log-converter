@@ -2,8 +2,12 @@
 
 P1 implements immutable IR data and CBOR bytes. Under d4949, these get golden,
 round-trip and malformed-input tests. Event identity tests include a literal
-length-framed hash vector and the s1/23 versus s12/3 collision control. A mixed-key
-CBOR vector distinguishes RFC 8949 §4.2.1 bytewise order from length-first order.
+five-field framed hash vectors (including the domain and empty/native versus
+inferred role tags) and the s1/23 versus s12/3 collision control. The unframed
+broken control collides. The fixed mixed-key CBOR vector is 10,23,24,100,-1,"a";
+its length-first control emits 10,23,-1,24,100,"a" and fails the golden. Reader
+witnesses cover reversed maps, indefinite maps/arrays/strings/bytes and
+nonpreferred integer/float/tag widths, all re-emitted canonically.
 There are **zero product stateful models**
 at this phase. `coverage.toml` inventories the crate and every production Rust
 source with its implementation-only evidence; omission fails the gate. No Yarn

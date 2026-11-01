@@ -211,13 +211,11 @@ fn malformed_truncated_duplicate_and_trailing_data_fail() {
 #[test]
 fn event_identity_obeys_the_exact_native_and_inferred_key_formula() {
     let id = EventId::native(Provider::Claude, "synthetic", "uuid-0");
-    // Literal framing assembled independently: domain, then 6/9/6-byte fields.
-    let hash = blake3::hash(
-        b"bxl.event.v1\x00\x00\x00\x06claude\x00\x00\x00\x09synthetic\x00\x00\x00\x06uuid-0",
-    );
+    // Literal frame lengths: domain 12, provider 6, session 9, key 6, role 0.
+    let hash = blake3::hash(b"\x00\x00\x00\x0cbxl.event.v1\x00\x00\x00\x06claude\x00\x00\x00\x09synthetic\x00\x00\x00\x06uuid-0\x00\x00\x00\x00");
     let expected = [
-        0x7c, 0x9b, 0x6c, 0x9f, 0x48, 0xea, 0xbd, 0x07, 0x3d, 0x1e, 0x48, 0xcc, 0xd3, 0xf0, 0x20,
-        0x57,
+        0xc9, 0xa0, 0xc0, 0x26, 0xc0, 0x23, 0xe3, 0x3f, 0x26, 0x8e, 0x8f, 0x01, 0x5f, 0xe9, 0x8b,
+        0xf0,
     ];
     assert_eq!(&hash.as_bytes()[..16], &expected);
     assert_eq!(id.0, expected);
@@ -225,8 +223,30 @@ fn event_identity_obeys_the_exact_native_and_inferred_key_formula() {
     assert_ne!(id, EventId::native(Provider::Codex, "synthetic", "uuid-0"));
     assert_ne!(id, EventId::native(Provider::Claude, "another", "uuid-0"));
     assert_ne!(id, EventId::native(Provider::Claude, "synthetic", "uuid-1"));
+    let start = EventId::inferred(Provider::Claude, "synthetic", "uuid-0", "turn-start");
+    let end = EventId::inferred(Provider::Claude, "synthetic", "uuid-0", "turn-end");
     assert_eq!(
-        EventId::inferred(Provider::Claude, "synthetic", "uuid-0", "#turn-start"),
+        start.0,
+        [
+            0x2d, 0xe1, 0x68, 0x09, 0x8b, 0x11, 0x52, 0x95, 0x81, 0x11, 0x55, 0x9c, 0xa5, 0xa8,
+            0x6d, 0xd8
+        ]
+    );
+    assert_eq!(
+        end.0,
+        [
+            0xcb, 0xea, 0x0f, 0xfa, 0xee, 0xa0, 0xe6, 0x90, 0x76, 0x7d, 0x9b, 0x93, 0x1e, 0xe0,
+            0x3c, 0x4d
+        ]
+    );
+    assert_ne!(start, id);
+    assert_ne!(end, start);
+    assert_ne!(
+        start,
+        EventId::native(Provider::Claude, "synthetic", "uuid-0turn-start")
+    );
+    assert_ne!(
+        start,
         EventId::native(Provider::Claude, "synthetic", "uuid-0#turn-start")
     );
     // Native file order and Claude DAG order remain independent.
@@ -252,50 +272,153 @@ fn event_identity_obeys_the_exact_native_and_inferred_key_formula() {
 
 #[test]
 fn event_identity_length_framing_separates_adjacent_native_fields() {
-    assert_ne!(
-        EventId::native(Provider::Claude, "s1", "23"),
-        EventId::native(Provider::Claude, "s12", "3")
+    let a = EventId::native(Provider::Claude, "s1", "23");
+    let b = EventId::native(Provider::Claude, "s12", "3");
+    assert_eq!(
+        a.0,
+        [
+            0xe3, 0x4f, 0x33, 0x49, 0x41, 0x4f, 0x16, 0x2f, 0x5e, 0x50, 0x65, 0x5a, 0xd6, 0x45,
+            0xdb, 0x33
+        ]
     );
+    assert_eq!(
+        b.0,
+        [
+            0x4b, 0x79, 0x81, 0xa5, 0x04, 0x0f, 0x1f, 0x50, 0x4c, 0x42, 0xb1, 0x2d, 0x13, 0x3e,
+            0x91, 0x89
+        ]
+    );
+    assert_ne!(a, b);
+    // Deliberately broken identity function: omit every length frame.
+    let unframed = |session: &str, key: &str| {
+        let joined = ["bxl.event.v1", "claude", session, key, ""].concat();
+        blake3::hash(joined.as_bytes()).as_bytes()[..16].to_vec()
+    };
+    assert_eq!(unframed("s1", "23"), unframed("s12", "3"));
+    assert_ne!(a.0.as_slice(), unframed("s1", "23"));
 }
 
+const MIXED_KEYS_GOLDEN: &[u8] = &[
+    0xa6, // six entries, null values
+    0x0a, 0xf6, // 10
+    0x17, 0xf6, // 23
+    0x18, 0x18, 0xf6, // 24
+    0x18, 0x64, 0xf6, // 100
+    0x20, 0xf6, // -1
+    0x61, 0x61, 0xf6, // "a"
+];
+fn mixed_keys() -> Value {
+    Value::Map(
+        [
+            Value::Text("a".into()),
+            Value::from(-1),
+            Value::from(100),
+            Value::from(24),
+            Value::from(23),
+            Value::from(10),
+        ]
+        .into_iter()
+        .map(|key| (key, Value::Null))
+        .collect(),
+    )
+}
 #[test]
 fn rfc8949_core_order_is_bytewise_across_key_types() {
-    // RFC 8949 §4.2.1 example, deliberately inserted in reverse order.
     let mut value = wire(&fixture("unknown"));
-    let keys = [
-        Value::from(10),
-        Value::from(100),
-        Value::from(-1),
-        Value::Text("z".into()),
-        Value::Text("aa".into()),
-        Value::Array(vec![Value::from(100)]),
-        Value::Array(vec![Value::from(-1)]),
-        Value::Bool(false),
-    ];
-    entries(&mut value).push((
-        Value::from(99),
-        Value::Map(
-            keys.into_iter()
-                .rev()
-                .map(|key| (key, Value::Null))
-                .collect(),
-        ),
-    ));
+    entries(&mut value).push((Value::from(99), mixed_keys()));
     let forwarded = cbor::decode::<Event>(&bytes(&value))
         .unwrap()
         .encode()
         .unwrap();
-    let mut canonical = wire(&forwarded);
-    let expected = [
-        0xa8, // 8 entries, each with a null value
-        0x0a, 0xf6, // 10
-        0x18, 0x64, 0xf6, // 100
-        0x20, 0xf6, // -1
-        0x61, 0x7a, 0xf6, // "z"
-        0x62, 0x61, 0x61, 0xf6, // "aa"
-        0x81, 0x18, 0x64, 0xf6, // [100]
-        0x81, 0x20, 0xf6, // [-1]
-        0xf4, 0xf6, // false
-    ];
-    assert_eq!(bytes(field(&mut canonical, 99)), expected);
+    assert_eq!(bytes(field(&mut wire(&forwarded), 99)), MIXED_KEYS_GOLDEN);
+}
+#[test]
+fn length_first_control_fails_the_mixed_key_golden() {
+    use ciborium::value::CanonicalValue;
+    let mut broken = mixed_keys();
+    entries(&mut broken).sort_by_cached_key(|(key, _)| CanonicalValue::from(key.clone()));
+    let broken_bytes = bytes(&broken);
+    assert_eq!(
+        broken_bytes,
+        [
+            0xa6, 0x0a, 0xf6, 0x17, 0xf6, 0x20, 0xf6, // 10,23,-1
+            0x18, 0x18, 0xf6, 0x18, 0x64, 0xf6, 0x61, 0x61, 0xf6, // 24,100,"a"
+        ]
+    );
+    assert_ne!(
+        broken_bytes, MIXED_KEYS_GOLDEN,
+        "length-first writer must fail the core-order golden"
+    );
+}
+
+fn noncanonical(value: &Value, out: &mut Vec<u8>) {
+    match value {
+        Value::Map(fields) => {
+            out.push(0xbf); // indefinite map, reversed field order
+            for (key, value) in fields.iter().rev() {
+                noncanonical(key, out);
+                noncanonical(value, out);
+            }
+            out.push(0xff);
+        }
+        Value::Array(items) => {
+            out.push(0x9f);
+            for item in items {
+                noncanonical(item, out);
+            }
+            out.push(0xff);
+        }
+        Value::Text(text) => {
+            out.push(0x7f);
+            out.extend(bytes(&Value::Text(text.clone())));
+            out.push(0xff);
+        }
+        Value::Bytes(data) => {
+            out.push(0x5f);
+            out.extend(bytes(&Value::Bytes(data.clone())));
+            out.push(0xff);
+        }
+        Value::Integer(integer) => {
+            let number = i128::from(*integer);
+            let argument = if number >= 0 {
+                out.push(0x1b);
+                number
+            } else {
+                out.push(0x3b);
+                -1 - number
+            };
+            out.extend(u64::try_from(argument).unwrap().to_be_bytes());
+        }
+        Value::Float(number) => {
+            out.push(0xfb);
+            out.extend(number.to_bits().to_be_bytes());
+        }
+        Value::Tag(tag, inner) => {
+            out.push(0xdb);
+            out.extend(tag.to_be_bytes());
+            noncanonical(inner, out);
+        }
+        _ => out.extend(bytes(value)),
+    }
+}
+#[test]
+fn reader_accepts_valid_noncanonical_lengths_floats_containers_and_key_order() {
+    for name in ["tool_json", "message", "session", "future_mixed_keys"] {
+        let canonical = fixture(name);
+        let mut incoming = Vec::new();
+        noncanonical(&wire(&canonical), &mut incoming);
+        assert_ne!(incoming, canonical);
+        let emitted = if name == "session" {
+            cbor::decode::<Session>(&incoming)
+                .unwrap()
+                .encode()
+                .unwrap()
+        } else {
+            cbor::decode::<Event>(&incoming).unwrap().encode().unwrap()
+        };
+        assert_eq!(
+            emitted, canonical,
+            "reader rejected or changed valid CBOR: {name}"
+        );
+    }
 }

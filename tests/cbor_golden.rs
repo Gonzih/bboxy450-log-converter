@@ -216,13 +216,11 @@ fn cases() -> BTreeMap<String, Vec<u8>> {
     use ciborium::value::Value as Cbor;
     let mut future: Cbor = ciborium::de::from_reader(cases["unknown"].as_slice()).unwrap();
     let keys = [
-        Cbor::Bool(false),
-        Cbor::Array(vec![Cbor::from(-1)]),
-        Cbor::Array(vec![Cbor::from(100)]),
-        Cbor::Text("aa".into()),
-        Cbor::Text("z".into()),
+        Cbor::Text("a".into()),
         Cbor::from(-1),
         Cbor::from(100),
+        Cbor::from(24),
+        Cbor::from(23),
         Cbor::from(10),
     ];
     let Cbor::Map(fields) = &mut future else {

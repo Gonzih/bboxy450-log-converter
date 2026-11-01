@@ -30,19 +30,37 @@ pub struct TurnId(pub String);
 /// RFC 3339 timestamp as recorded by the provider; never synthesized.
 pub type Timestamp = String;
 
-/// First 16 bytes of BLAKE3 over `bxl.event.v1` followed by provider,
-/// native_id and native_key, each prefixed by its u32 big-endian byte length.
+/// First 16 bytes of BLAKE3 over framed domain, provider, native_id,
+/// native_key and role_tag. Every frame is a u32 BE byte length plus UTF-8 bytes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct EventId(pub [u8; 16]);
 
 impl EventId {
+    /// Native records use an empty role tag.
     /// # Panics
     /// Panics if a field exceeds the u32 framing limit (4 GiB minus one byte).
     pub fn native(provider: Provider, native_id: &str, native_key: &str) -> Self {
+        Self::framed(provider, native_id, native_key, "")
+    }
+
+    /// Inferred turn boundaries use the unchanged anchor key and the separate
+    /// role tag `turn-start` or `turn-end`.
+    /// # Panics
+    /// Panics if a field exceeds the u32 framing limit.
+    pub fn inferred(provider: Provider, native_id: &str, anchor: &str, role_tag: &str) -> Self {
+        Self::framed(provider, native_id, anchor, role_tag)
+    }
+
+    fn framed(provider: Provider, native_id: &str, native_key: &str, role_tag: &str) -> Self {
         let mut hash = blake3::Hasher::new();
-        hash.update(b"bxl.event.v1");
-        for field in [provider.as_str(), native_id, native_key] {
+        for field in [
+            "bxl.event.v1",
+            provider.as_str(),
+            native_id,
+            native_key,
+            role_tag,
+        ] {
             let len = u32::try_from(field.len()).expect("EventId field exceeds u32 length");
             hash.update(&len.to_be_bytes());
             hash.update(field.as_bytes());
@@ -52,11 +70,6 @@ impl EventId {
                 .try_into()
                 .expect("16-byte slice"),
         )
-    }
-
-    /// Inferred events use the anchor key followed by a role tag, e.g. #turn-start.
-    pub fn inferred(provider: Provider, native_id: &str, anchor: &str, role_tag: &str) -> Self {
-        Self::native(provider, native_id, &format!("{anchor}{role_tag}"))
     }
 }
 

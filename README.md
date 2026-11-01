@@ -26,9 +26,17 @@ lengths, shortest primitive representations and recursive bytewise map key
 ordering under [RFC 8949 §4.2.1](https://www.rfc-editor.org/rfc/rfc8949.html#section-4.2.1).
 Fixed goldens cover every variant and enum value, including mixed key types.
 
-Event IDs hash the domain tag `bxl.event.v1`, then provider, native session ID
-and native record key, each framed by its u32 big-endian byte length. This
-separates adjacent field boundaries before taking the first 16 BLAKE3 bytes.
+Event IDs take the first 16 BLAKE3 bytes of five framed UTF-8 fields: domain tag
+`bxl.event.v1`, provider, native session ID, native record key and role tag.
+Every field, including the domain and role, has a u32 big-endian byte length.
+Native records use an empty role tag; inferred boundaries use the anchor's key
+with a separate `turn-start` or `turn-end` role. The finalized contract is
+[harness d7cc01e](https://github.com/bboxy450/bboxy450-harness/blob/d7cc01e/.bboxy/interfaces/lc-ir.md).
+
+Readers accept valid noncanonical record encodings, including indefinite-length
+containers and nonpreferred primitive widths, and validate the IR schema.
+Writers always emit the canonical form; the mixed-key golden uses
+`{10,23,24,100,-1,"a"}` in that bytewise order.
 
 ```rust
 use bboxy450_log_converter::ir::{Event, cbor};

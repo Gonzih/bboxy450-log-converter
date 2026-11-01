@@ -356,3 +356,161 @@ formal: GateFairResponse: pass, 4 states, 6 edges match
 formal: BrokenGateLiveness: liveness, 4 states, 6 edges match
 formal: PASS; 5 exact graph/verdict pairs; 0 product contracts; retained verification/evidence/0b58809b472980f37d4330dbcb66f7d4d1368427a882c456cae697b7f0f1173e
 test: PASS
+
+
+P1 finalized-spec follow-up — 2026-11-01
+Authority: Oracle message 01M6CMFS3VDEYRA5TNEH8B0J4Z. Binding source:
+bboxy450-harness d7cc01e, .bboxy/interfaces/lc-ir.md §2/§8 and lc-bxl.md §5.
+This section supersedes the earlier review framing/vector descriptions.
+Base: signed 381d3fd141eaecae3ea740b363d95fb4e6a9c4e9. Work remains isolated
+in bboxy450-log-converter-p1; no merge, release or base-clone changes.
+
+Implemented final contract:
+- src/ir/mod.rs:43/51/55 — EventId is the first 16 bytes of BLAKE3 over exactly
+  five UTF-8 frames: bxl.event.v1, provider, native_id, native_key and role_tag.
+  Every frame, including domain and empty role, is u32 BE length plus bytes.
+  Native role is empty. Inferred boundaries use unchanged anchor native_key and
+  the separate turn-start / turn-end role; no # suffix is appended to the key.
+- tests/cbor_compat.rs:212/274 — fixed vectors, and a deliberate unframed control
+  that collides across s1/23 and s12/3. First-16-byte vectors for Claude:
+    synthetic / uuid-0 / empty:      c9a0c026c023e33f268e8f015fe98bf0
+    synthetic / uuid-0 / turn-start: 2de168098b1152958111559ca5a86dd8
+    synthetic / uuid-0 / turn-end:   cbea0ffaeea0e690767d9b931ee03c4d
+    s1 / 23 / empty:                e34f3349414f162f5e50655ad645db33
+    s12 / 3 / empty:                4b7981a5040f1f504c42b12d133e9189
+  An independent literal-preimage helper pins these against the locked BLAKE3
+  dependency; none is assembled by EventId::native inside the vector helper.
+- tests/cbor_compat.rs:326/336 and tests/cbor_golden.rs:237/241 — the fixed mixed
+  key set is exactly {10,23,24,100,-1,"a"}. Canonical order: 10,23,24,100,-1,"a".
+  Six-entry map with null values, fixed golden bytes:
+    a60af617f61818f61864f620f66161f6
+  The length-first broken writer emits 10,23,-1,24,100,"a":
+    a60af617f620f61818f61864f66161f6
+  The control explicitly fails the same fixed-byte comparison.
+- tests/cbor_compat.rs:405 — valid noncanonical input is accepted: reversed map
+  order; indefinite maps/arrays/text/bytes; nonpreferred integer, tag and float
+  widths. Re-emission equals canonical fixtures, including the mixed-key record.
+  Existing duplicate/malformed/trailing-record rejection remains enforced.
+- tests/fixtures/ir-v0.1.hex deliberately regenerated again for the final five-
+  field identity contract and prescribed mixed-key set. Still 68 cases; 65 byte
+  vectors changed. Two Session vectors and the minimal Event stay unchanged.
+  The ordinary golden test never rewrites fixtures; the one-use generator was
+  removed. No production CBOR comparator change was needed after the prior fix.
+- README.md and verification/README.md document the final source pin, framing,
+  exact mixed-key control and permissive-reader/canonical-writer split. The P2
+  typed extension-editing advisory remains recorded, without scope expansion.
+
+Commands and actual results:
+- New finalized-spec tests against the prior implementation: cargo test --offline
+  --locked --test cbor_compat — exit 101, 8 pass and exactly the 2 framing/vector
+  tests fail. /tmp/lc-p1-final-spec-controls-before.log retains the diagnostics.
+- rustc and literal-preimage vector helper — exit 0.
+- cargo test --offline --locked --test cbor_final_regenerate — exit 0; removed
+  temporary generator after the deliberate golden regeneration.
+- cargo test --offline --locked --test cbor_golden --test cbor_compat — exit 0;
+  all 10 compatibility tests and the 68-case fixed golden/round-trip test pass.
+- make test — exit 0, all 9 canonical gate stages exit 0 unattended. Headers,
+  secrets, deny checks, both clippy configurations and all Rust targets pass;
+  all 5 native/Java full graph+verdict pairs match. No product stateful contract
+  or checker/tool semantics changed. Full output appended below.
+- git diff --check — exit 0.
+
+The new signed commit includes this appendix and is pushed to PR #1. After
+commit, make test and make check-formal-evidence refresh the exact HEAD receipt;
+the task handoff supplies the head SHA and final command/signature statuses.
+Tracked source is clean at handoff; generated receipts, target and retained
+formal archives remain local and unstaged.
+
+Captured finalized-spec canonical gate stdout follows:
+python3 -I scripts/test.py
+test: cargo fmt --check
+test: cargo clippy --offline --locked --all-targets -- -D warnings
+    Checking bboxy450-log-converter v0.1.0 (/Users/feral/mydev/bboxy450-log-converter-p1)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.84s
+test: cargo clippy --offline --locked --all-targets --all-features -- -D warnings
+    Blocking waiting for file lock on package cache
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.04s
+test: cargo test --offline --locked --all-targets --all-features
+   Compiling bboxy450-log-converter v0.1.0 (/Users/feral/mydev/bboxy450-log-converter-p1)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.22s
+     Running unittests src/lib.rs (target/debug/deps/bboxy450_log_converter-81ab91390f1289e2)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/bboxy450_log_converter-d3c26268aedfb017)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/cbor_compat.rs (target/debug/deps/cbor_compat-e4332d7a0c2802a3)
+
+running 10 tests
+test event_identity_length_framing_separates_adjacent_native_fields ... ok
+test length_first_control_fails_the_mixed_key_golden ... ok
+test event_identity_obeys_the_exact_native_and_inferred_key_formula ... ok
+test rfc8949_core_order_is_bytewise_across_key_types ... ok
+test future_union_and_unit_tags_project_unknown_and_forward_losslessly ... ok
+test canonical_encoding_ignores_map_insertion_order_including_json_payloads ... ok
+test unknown_fields_survive_at_each_event_record_depth ... ok
+test unknown_session_source_git_and_lineage_keys_survive ... ok
+test reader_accepts_valid_noncanonical_lengths_floats_containers_and_key_order ... ok
+test malformed_truncated_duplicate_and_trailing_data_fail ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/cbor_golden.rs (target/debug/deps/cbor_golden-42d0b3758a32dc57)
+
+running 1 test
+test every_variant_has_a_fixed_golden_and_round_trip ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/cli.rs (target/debug/deps/cli-dfab9fe4c90d7738)
+
+running 1 test
+test help_version_and_skeleton_status_are_honest ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+
+     Running tests/formal_models.rs (target/debug/deps/formal_models-eab56de6df2abe21)
+
+running 1 test
+test native_models_and_controls ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+test: python3 -I scripts/checks.py headers
+headers: PASS
+test: python3 -I scripts/checks.py secrets
+secrets: PASS
+test: python3 -I scripts/checks.py deny
+deny: PASS; 52 direct/transitive/dev packages, source provenance checked
+test: python3 -I scripts/test-checks.py
+........
+----------------------------------------------------------------------
+Ran 8 tests in 0.012s
+
+OK
+test: make test-formal
+FORMAL_OUT='/Users/feral/mydev/bboxy450-log-converter-p1/target/formal/models' cargo test --offline --locked --test formal_models
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.03s
+     Running tests/formal_models.rs (target/debug/deps/formal_models-eab56de6df2abe21)
+
+running 1 test
+test native_models_and_controls ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+python3 -I scripts/formal.py --native --target '/Users/feral/mydev/bboxy450-log-converter-p1/target/formal'
+formal: native 5 checker/contract cases; 1 crates; 0 product contracts
+python3 -I scripts/formal.py --target '/Users/feral/mydev/bboxy450-log-converter-p1/target/formal'
+formal: GateFairResponse: pass, 4 states, 6 edges match
+formal: GateCounter: pass, 3 states, 2 edges match
+formal: BrokenGateDeadlock: deadlock, 3 states, 2 edges match
+formal: BrokenGateSafety: safety, 3 states, 2 edges match
+formal: BrokenGateLiveness: liveness, 4 states, 6 edges match
+formal: PASS; 5 exact graph/verdict pairs; 0 product contracts; retained verification/evidence/3a634499e7d101b63f4f9db221d7b30737180d8709e9823d79b321dc0c0f314a
+test: PASS

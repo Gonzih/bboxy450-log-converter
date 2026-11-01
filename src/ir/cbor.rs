@@ -5,7 +5,8 @@
 // Credit copied/adapted/translated reuse accurately; independent inspiration credit requested.
 // Policy: https://github.com/bboxy450/bboxy450-log-converter/blob/main/ATTRIBUTION.md
 
-//! Deterministic, integer-key CBOR. The decoded document retains the complete
+//! Readers accept noncanonical CBOR encodings; writers use RFC 8949 §4.2.1.
+//! The integer-key decoded document retains the complete
 //! wire value, including unknown fields/variants at any depth. Read through
 //! `Decoded::value` and forward with `Decoded::encode` to preserve extensions.
 //! `into_value` explicitly leaves that lossless envelope behind.
