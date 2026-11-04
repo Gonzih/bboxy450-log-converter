@@ -64,3 +64,17 @@ A distinctive implementation adapted from elsewhere carries its own `// Adapted 
 - **cross_agent_session_resumer (casr)** — https://github.com/Dicklesworthstone/cross_agent_session_resumer (MIT): provider read/write/resume shape and the read(write(read(x))) fidelity check.
 - **Harbor ATIF v1.8** — https://github.com/laude-institute/harbor (Apache-2.0): trajectory step and tool-call shape; ATIF export is our own implementation.
 - **claude-code-log** — https://github.com/daaain/claude-code-log (MIT): taxonomy of Claude Code entry types.
+
+## Shared suite license verification
+
+The license text is byte-identical to bboxy450-term's Respectful Slop License
+1.0-Draft. `make test-licenses` checks the entire license, local Cargo metadata,
+source-attached credit, preserved prior terms and deliberate broken controls.
+`make check-license-packages` checks Cargo's real package file lists where present.
+
+Copied from bboxy450-term, with original source notices retained:
+- https://github.com/bboxy450/bboxy450-term/blob/main/scripts/suite-licenses.py
+- https://github.com/bboxy450/bboxy450-term/blob/main/scripts/test-suite-licenses.py
+
+The accompanying `licensing.json` records source scope, preserved-file hashes
+and the exact shared checker copies. These checks do not replace upstream terms.

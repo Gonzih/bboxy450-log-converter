@@ -1,0 +1,12 @@
+bboxy450-log-converter — notices
+Canonical source: https://github.com/bboxy450/bboxy450-log-converter
+Copyright 2026 Boxy (bboxy450) and contributors.
+
+Project-owned material uses Respectful Slop License 1.0-Draft (LICENSE).
+Existing upstream terms, copyright notices and prior grants remain preserved.
+Names, logos and identity images retain their existing rights and exclusions.
+
+The shared policy checker and its negative controls are copied from bboxy450-term:
+https://github.com/bboxy450/bboxy450-term/blob/main/scripts/suite-licenses.py
+https://github.com/bboxy450/bboxy450-term/blob/main/scripts/test-suite-licenses.py
+Their original source-attached notices are retained.

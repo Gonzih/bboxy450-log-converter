@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "project": "bboxy450-log-converter",
+  "source_project": "bboxy450-log-converter",
+  "source_roots": [
+    "."
+  ],
+  "preserved": {},
+  "shared": {
+    "scripts/suite-licenses.py": "d65dfe5c3a49efae22a20917bcfb99d7e1fc32f58acfca280216d262834bf863",
+    "scripts/test-suite-licenses.py": "8d4179210d141dca87dbd4450937b1c033f20b8e9ae8d7e6a748b4a3a2adb5dc"
+  }
+}
